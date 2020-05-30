@@ -1,0 +1,58 @@
+name: Test pull request
+on:
+  pull_request
+jobs:
+  download-grabpl:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Grafana Build Pipeline Tool
+        uses: ./.github/actions/download-grabpl
+      - uses: actions/upload-artifact@v2
+        with:
+          name: grabpl
+          path: grabpl
+  # TODO: Make enterprise variety
+  build-oss-backend:
+    runs-on: self-hosted
+    needs:
+      - download-grabpl
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: grabpl
+      - name: Cache Go dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ hashFiles('go.mod') }}
+          restore-keys: |
+            go-
+      - uses: ./.github/actions/build-backend
+      - uses: actions/upload-artifact@v2
+        with:
+          name: binaries
+          path: bin/
+  # TODO: Make enterprise variety
+  build-oss-frontend:
+    runs-on: self-hosted
+    needs:
+      - download-grabpl
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: grabpl
+      - name: Cache Node dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            node-
+      - uses: ./.github/actions/build-frontend
+      - uses: actions/upload-artifact@v2
+        with:
+          name: frontend
+          path: public/
